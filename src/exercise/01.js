@@ -4,6 +4,9 @@
 import * as React from 'react'
 
 function countReducer(prevState, newState) {
+  if (typeof newState === "function") {
+    return newState(prevState);
+  }
   return newState;
 }
 
@@ -18,12 +21,15 @@ function Counter({initialCount = 0, step = 1}) {
   // The 2nd argument is called "newState" - the value passed to setCount
 
   // const increment = () => setCount(count + step)
-  const increment = () => setState({ count: state.count + step})
-  return <button onClick={increment}>{state.count}</button>
+
+  const { count } = state;
+  const increment = () => setState(state => ({ count: state.count + step}));
+
+  return <button onClick={increment}>{count}</button>
 }
 
 function App() {
-  return <><Counter /><p>Ver3</p></>
+  return <><Counter /><p>Ver-callback</p></>
 }
 
 export default App
