@@ -28,48 +28,45 @@ function asyncReducer(state, action) {
   }
 }
 
-function useAsync(retrieveCallback, initialState) {
+function useAsync(initialState) {
   
   
   const [state, dispatch] = React.useReducer(asyncReducer, initialState);
 
-
-  React.useEffect(() => {
-    
-    const promise = retrieveCallback();
-    if (!promise) {
-      return
-    }
-    dispatch({type: 'pending'})
-    promise.then(
-      data => {
-        dispatch({type: 'resolved', data})
-      },
-      error => {
-        dispatch({type: 'rejected', error})
-      })
-  }, [retrieveCallback])
-
-  return state;
+  return {
+    ...state,
+    applyResultAsync: ((promise) => {
+      promise.then(
+        data => {
+          dispatch({type: 'resolved', data})
+        },
+        error => {
+          dispatch({type: 'rejected', error})
+        },
+      )
+    })
+  }
 }
 
 function PokemonInfo({pokemonName}) {
 
-  const retrievePokemon = React.useCallback(() => {
+  const {
+    data: pokemon,
+    status,
+    error,
+    applyResultAsync,
+  } = useAsync({status: pokemonName ? 'pending' : 'idle'})
+
+  React.useEffect(() => {
     if (!pokemonName) {
       return
     }
-    return fetchPokemon(pokemonName)
-  }, [pokemonName]);
-
-  const state = useAsync(retrievePokemon, {
-    status: pokemonName ? 'pending' : 'idle',
-    // 🐨 this will need to be "data" instead of "pokemon"
-    pokemon: null,
-    error: null,
-  });
-
-  const {data, status, error} = state
+    // 💰 note the absence of `await` here. We're literally passing the promise
+    // to `run` so `useAsync` can attach it's own `.then` handler on it to keep
+    // track of the state of the promise.
+    const pokemonPromise = fetchPokemon(pokemonName)
+    applyResultAsync(pokemonPromise)
+  }, [pokemonName, applyResultAsync])
 
   switch (status) {
     case 'idle':
@@ -79,7 +76,7 @@ function PokemonInfo({pokemonName}) {
     case 'rejected':
       throw error
     case 'resolved':
-      return <PokemonDataView pokemon={data} />
+      return <PokemonDataView pokemon={pokemon} />
     default:
       throw new Error('This should be impossible')
   }
